@@ -1,217 +1,351 @@
-E-Commerce Mobile UI
+# Asri Collection
 
-Versi: 1.2
+Aplikasi e-commerce modern dengan antarmuka **mobile-first, responsif, dan mudah digunakan** untuk pengalaman belanja yang konsisten di ponsel, tablet, maupun desktop.
 
-Aplikasi e-commerce dengan tampilan modern dan responsif yang dirancang untuk memberikan pengalaman belanja online yang nyaman di perangkat mobile maupun desktop.
+> **Status dokumen:** spesifikasi dan rancangan awal. Daftar fitur, tabel, serta Edge Functions di bawah menjelaskan target arsitektur dan tidak berarti semuanya sudah diimplementasikan atau diverifikasi di repository.
 
-✨ Fitur Utama
-Responsive mobile UI
-Halaman beranda produk
-Kategori dan pencarian produk
-Filter dan pengurutan produk
-Detail produk
-Keranjang belanja
-Guest Checkout tanpa login atau registrasi
-Informasi pembeli dan alamat pengiriman
-Integrasi pembayaran melalui Duitku POP
-Konfirmasi pembayaran dan detail pesanan
-Pelacakan status pesanan
-📱 Daftar Halaman Aplikasi
-No.	Nama Halaman	Fungsi
-1	Splash Screen	Tampilan awal aplikasi
-2	Onboarding	Pengenalan aplikasi
-3	Home	Menampilkan produk dan promo
-4	Search	Mencari produk
-5	Category	Menampilkan kategori produk
-6	Product Listing	Menampilkan daftar produk
-7	Filter & Sort	Menyaring dan mengurutkan produk
-8	Product Detail	Menampilkan detail produk
-9	Wishlist	Menyimpan produk favorit
-10	Cart	Menampilkan keranjang belanja
-11	Edit Cart	Mengubah jumlah atau menghapus produk
-12	Voucher & Promo	Memasukkan kode promo
-13	Guest Checkout	Memulai checkout tanpa login
-14	Buyer Information	Mengisi nama, email, dan nomor telepon
-15	Shipping Address	Mengisi alamat pengiriman
-16	Shipping Method	Memilih layanan pengiriman
-17	Payment Method	Memilih metode pembayaran melalui Duitku POP
-18	Order Summary	Memeriksa detail dan total pesanan
-19	Payment Processing	Memulai proses pembayaran
-20	Payment Pending	Menampilkan status menunggu pembayaran
-21	Payment Failed	Menampilkan status pembayaran gagal
-22	Order Success	Konfirmasi pesanan berhasil
-23	Order Detail	Menampilkan detail transaksi
-24	Track Order	Melacak status pengiriman
-25	Cancel Order	Membatalkan pesanan sesuai ketentuan
-26	Return & Refund	Mengajukan pengembalian barang atau dana
-27	Help Center / FAQ	Menampilkan panduan bantuan
-28	Contact Customer Service	Menghubungi layanan pelanggan
-29	About Us	Informasi tentang aplikasi
-30	Terms & Conditions	Syarat dan ketentuan penggunaan
-31	Privacy Policy	Kebijakan privasi
-🗄️ Daftar Database Table
-No.	Tabel	Kolom Utama	Fungsi
-1	products	id, name, description, price, stock, category, product_image	Menyimpan data produk
-2	carts	id, session_id, created_at	Menyimpan keranjang guest
-3	cart_items	id, cart_id, product_id, quantity	Menyimpan item keranjang
-4	orders	id, customer_name, email, phone, address, total_amount, order_status, created_at	Menyimpan data pembeli dan pesanan
-5	order_items	id, order_id, product_id, product_name, price, quantity, subtotal	Menyimpan detail produk pesanan
-6	payments	id, order_id, merchant_order_id, duitku_reference, payment_method, payment_status, payment_url, paid_at	Menyimpan data transaksi Duitku POP
-7	shipments	id, order_id, courier, tracking_number, shipping_status	Menyimpan data pengiriman
-Catatan Struktur Database
-Produk: Data kategori dan gambar produk disimpan langsung di tabel products.
-Pesanan: Data pembeli dan alamat pengiriman disimpan langsung di tabel orders.
-Keranjang guest: Keranjang diidentifikasi melalui session_id, tanpa memerlukan akun pengguna.
-Snapshot transaksi: Kolom product_name dan price pada order_items menyimpan data produk saat transaksi dibuat agar riwayat pesanan tetap akurat meskipun data produk berubah.
-ID transaksi: merchant_order_id harus unik untuk setiap transaksi.
-Relasi tabel: cart_items mengacu pada carts dan products; order_items mengacu pada orders dan products; payments serta shipments mengacu pada orders.
-Integritas data: Gunakan primary key, foreign key, indeks, dan constraint yang sesuai. Kolom serta relasi dapat disesuaikan dengan kebutuhan implementasi dan payment gateway.
-💳 Integrasi Duitku POP
+## Daftar Isi
 
-Integrasi pembayaran menggunakan Duitku POP untuk mengarahkan pembeli ke halaman pembayaran yang dikelola Duitku.
+- [Gambaran Umum](#gambaran-umum)
+- [Tujuan Produk](#tujuan-produk)
+- [Teknologi](#teknologi)
+- [Ruang Lingkup Fitur](#ruang-lingkup-fitur)
+- [Daftar Halaman](#daftar-halaman)
+- [Alur Belanja](#alur-belanja)
+- [Arsitektur](#arsitektur)
+- [Rancangan Database Supabase](#rancangan-database-supabase)
+- [Supabase Edge Functions](#supabase-edge-functions)
+- [Integrasi Duitku POP](#integrasi-duitku-pop)
+- [Keamanan dan Integritas Data](#keamanan-dan-integritas-data)
+- [Konfigurasi Environment](#konfigurasi-environment)
+- [Menjalankan Proyek](#menjalankan-proyek)
+- [Pengujian dan Kriteria Penerimaan](#pengujian-dan-kriteria-penerimaan)
+- [Tahapan Pengembangan](#tahapan-pengembangan)
+- [Status Implementasi](#status-implementasi)
+- [Lisensi](#lisensi)
 
-Kolom Pembayaran
-Kolom	Keterangan
-merchant_order_id	ID transaksi unik yang dibuat oleh sistem toko
-duitku_reference	Referensi transaksi yang dikembalikan Duitku
-payment_url	URL halaman pembayaran Duitku POP
-payment_method	Metode pembayaran yang dipilih atau digunakan
-payment_status	Status pembayaran, misalnya pending, success, atau failed
-paid_at	Waktu pembayaran terkonfirmasi
-Proses Integrasi
+## Gambaran Umum
 
-Saat membuat transaksi, backend mengirim permintaan ke Duitku POP. Setelah transaksi berhasil dibuat, sistem menyimpan referensi transaksi dan URL pembayaran ke tabel payments.
+**Asri Collection** dirancang sebagai toko online untuk menelusuri katalog produk, melihat detail produk, mengelola keranjang, checkout sebagai tamu (*guest checkout*), membayar melalui Duitku POP, dan memantau pesanan.
 
-Pembeli kemudian diarahkan ke payment_url untuk menyelesaikan pembayaran melalui halaman Duitku.
+Aplikasi menggunakan React, Vite, dan TypeScript di sisi frontend. Supabase menjadi backend melalui PostgreSQL, Storage bila diperlukan, dan Edge Functions untuk operasi server yang tervalidasi. Tidak ada kredensial rahasia pembayaran yang boleh ditanam di frontend.
 
-Catatan: Pembuatan transaksi, penyimpanan kredensial, verifikasi callback, dan pembaruan status pembayaran harus dilakukan di backend. Detail request, signature, dan callback mengikuti dokumentasi resmi Duitku yang berlaku.
+## Tujuan Produk
 
-🔄 Alur Pembayaran
-Pembeli memilih produk dan memasukkannya ke keranjang.
-Pembeli melakukan checkout sebagai guest tanpa login.
-Pembeli mengisi informasi kontak dan alamat pengiriman.
-Sistem menghitung total produk, ongkos kirim, diskon, dan jumlah pembayaran.
-Sistem membuat data pada tabel orders dan order_items.
-Backend meminta pembuatan transaksi ke Duitku POP.
-Backend menyimpan merchant_order_id, duitku_reference, dan payment_url pada tabel payments.
-Pembeli diarahkan ke halaman pembayaran Duitku.
-Duitku mengirim HTTP callback ke backend setelah status transaksi berubah.
-Backend memverifikasi signature dan validitas callback.
-Sistem memperbarui payment_status dan order_status sesuai hasil pembayaran yang telah diverifikasi.
-Pembeli dapat melihat hasil pembayaran dan status pesanan melalui halaman konfirmasi atau pelacakan pesanan.
-🔐 Catatan Keamanan
+- Menyediakan UI modern yang mengutamakan penggunaan di perangkat mobile.
+- Memudahkan pelanggan menemukan, membandingkan, dan membeli produk.
+- Mendukung checkout tanpa mewajibkan pelanggan membuat akun.
+- Menjaga konsistensi harga, stok, pesanan, dan pembayaran di backend.
+- Memisahkan status pesanan, pembayaran, dan pengiriman.
+- Menyediakan fondasi yang dapat diuji dan dikembangkan tanpa menganggap rancangan sebagai implementasi aktif.
 
-Gunakan HTTP callback Duitku yang diverifikasi di backend sebagai sumber kebenaran status pembayaran. Jangan hanya mengandalkan redirect setelah pembayaran atau callback JavaScript di browser.
+## Teknologi
 
-Pastikan hal-hal berikut:
+| Area | Teknologi / rancangan |
+|---|---|
+| Frontend | React, Vite, TypeScript |
+| UI dan styling | Tailwind CSS dan lucide-react (rancangan) |
+| Routing | React Router (rancangan) |
+| State keranjang | Zustand; penyimpanan lokal untuk pengalaman pengguna |
+| Backend | Supabase Edge Functions dengan TypeScript/Deno |
+| Database | Supabase PostgreSQL |
+| Penyimpanan gambar | Supabase Storage, bila dibutuhkan |
+| Payment gateway | Duitku POP |
+| Pengujian | Unit, integrasi, dan end-to-end sesuai kemampuan proyek |
 
-ID transaksi unik: merchant_order_id harus unik untuk setiap transaksi.
-Validasi signature: Verifikasi signature callback sesuai spesifikasi resmi Duitku.
-Idempotensi: Callback yang sama dapat diterima berulang kali tanpa memproses transaksi dua kali.
-Validasi transaksi: Cocokkan identitas transaksi, nominal pembayaran, dan status yang diterima dengan data pesanan.
-Pembaruan status: Status pembayaran dan pesanan hanya diperbarui setelah validasi berhasil.
-Keamanan akses: Halaman Order Detail dan Track Order harus menggunakan token akses atau mekanisme verifikasi yang aman, bukan hanya nomor pesanan yang mudah ditebak.
-Pengelolaan stok: Pastikan stok diperiksa dan diperbarui secara konsisten agar tidak terjadi penjualan melebihi stok tersedia.
-Pengelolaan rahasia: Simpan merchant key dan kredensial Duitku di backend, bukan di aplikasi frontend.
-Validasi input: Validasi seluruh input dari pengguna di backend dan gunakan query database yang aman.
-Transaksi database: Gunakan transaksi database saat membuat pesanan, menyimpan detail item, dan memperbarui stok untuk menjaga konsistensi data.
-Aturan Status Pesanan
+Versi paket dan konfigurasi aktual mengikuti berkas proyek seperti `package.json` dan konfigurasi build yang tersedia.
 
-Pesanan baru diproses setelah pembayaran terkonfirmasi jika kebijakan bisnis mengharuskan pembayaran di muka.
+## Ruang Lingkup Fitur
 
-Pesanan yang belum dibayar tetap berstatus menunggu pembayaran dan dapat dibatalkan sesuai batas waktu serta aturan yang ditetapkan.
+### Katalog dan penemuan produk
 
-Status pembayaran dan status pesanan harus dikelola secara terpisah agar status transaksi tidak tercampur dengan status pengiriman.
+- Beranda dengan banner promosi dan koleksi pilihan.
+- Kategori dan daftar produk.
+- Pencarian produk.
+- Filter dan pengurutan.
+- Detail produk, gambar, harga, deskripsi, dan ketersediaan.
+- Produk terkait atau rekomendasi.
+- Tampilan kondisi kosong, loading, dan error.
 
-Contoh status pembayaran:
+### Keranjang dan checkout
 
-pending
-success
-failed
+- Keranjang belanja tanpa akun.
+- Mengubah jumlah item dan menghapus item.
+- Validasi harga dan ketersediaan ulang di backend sebelum membuat pesanan.
+- Form nama, email, nomor telepon, dan alamat pengiriman.
+- Ringkasan item, diskon, ongkos kirim, dan total.
+- Checkout sebagai tamu.
+- Halaman status dan detail pesanan dengan akses yang aman.
 
-Contoh status pesanan:
+### Pembayaran dan pesanan
 
-pending_payment
-processing
-shipped
-completed
-cancelled
+- Pembuatan invoice Duitku POP dari backend.
+- Halaman menunggu pembayaran, gagal, dan berhasil.
+- Konfirmasi pembayaran berdasarkan callback backend yang tervalidasi.
+- Riwayat atau pencarian pesanan untuk guest melalui mekanisme akses aman.
+- Pelacakan pengiriman dan nomor resi.
+- Pembatalan, retur, dan refund mengikuti kebijakan bisnis yang ditetapkan.
 
-Daftar status tersebut merupakan rancangan awal dan dapat disesuaikan dengan kebutuhan bisnis.
+### Fitur lanjutan yang direncanakan
 
-🎯 Ruang Lingkup MVP
+- Wishlist.
+- Voucher dan promo.
+- Ulasan produk.
+- Pusat bantuan dan FAQ.
+- Kontak layanan pelanggan.
+- Panel admin untuk mengelola katalog, pesanan, pembayaran, dan pengiriman; akses admin harus dilindungi secara terpisah.
 
-Versi awal aplikasi berfokus pada:
+Fitur lanjutan tidak dianggap tersedia sampai implementasi dan pengujiannya terkonfirmasi.
 
-Katalog, pencarian, dan detail produk.
-Keranjang belanja guest.
-Checkout tanpa login.
-Informasi pembeli dan alamat pengiriman.
-Pembayaran melalui Duitku POP.
-Konfirmasi pembayaran dan detail pesanan.
-Pelacakan pengiriman.
+## Daftar Halaman
 
-Fitur berikut dapat dikembangkan pada tahap berikutnya:
+| No. | Halaman | Fungsi |
+|---:|---|---|
+| 1 | Splash / App Loading | Menampilkan identitas aplikasi saat inisialisasi |
+| 2 | Onboarding (opsional) | Pengenalan singkat aplikasi |
+| 3 | Beranda | Banner, kategori, dan produk pilihan |
+| 4 | Pencarian | Mencari produk |
+| 5 | Kategori | Menjelajahi kategori |
+| 6 | Daftar Produk | Menampilkan katalog produk |
+| 7 | Filter & Sort | Menyaring dan mengurutkan katalog |
+| 8 | Detail Produk | Informasi, gambar, harga, dan ketersediaan |
+| 9 | Wishlist (lanjutan) | Menyimpan produk favorit |
+| 10 | Keranjang | Memeriksa item yang dipilih |
+| 11 | Edit Keranjang | Mengubah kuantitas atau menghapus item |
+| 12 | Voucher & Promo (lanjutan) | Memasukkan kode promo |
+| 13 | Checkout Guest | Memulai checkout tanpa login |
+| 14 | Informasi Pembeli | Mengisi nama dan informasi kontak |
+| 15 | Alamat Pengiriman | Mengisi alamat penerima |
+| 16 | Pengiriman | Menampilkan opsi atau hasil penentuan ongkir sesuai kebijakan toko |
+| 17 | Metode Pembayaran | Memulai pembayaran melalui Duitku POP |
+| 18 | Ringkasan Pesanan | Memeriksa item dan perhitungan total |
+| 19 | Pengalihan Pembayaran | Mengarahkan pelanggan ke halaman pembayaran Duitku |
+| 20 | Menunggu Pembayaran | Menampilkan status pending |
+| 21 | Pembayaran Gagal | Menampilkan status gagal dan langkah berikutnya |
+| 22 | Konfirmasi Pesanan | Menampilkan hasil yang telah dikonfirmasi backend |
+| 23 | Detail Pesanan | Menampilkan ringkasan pesanan dengan akses aman |
+| 24 | Lacak Pesanan | Menampilkan status pengiriman dan resi |
+| 25 | Pembatalan Pesanan | Mengajukan pembatalan sesuai aturan |
+| 26 | Retur & Refund (lanjutan) | Informasi atau pengajuan retur/refund |
+| 27 | Pusat Bantuan / FAQ | Menjawab pertanyaan umum |
+| 28 | Kontak Layanan Pelanggan | Kanal komunikasi bantuan |
+| 29 | Tentang Asri Collection | Informasi toko |
+| 30 | Syarat & Ketentuan | Ketentuan penggunaan |
+| 31 | Kebijakan Privasi | Penjelasan pemrosesan data |
 
-Wishlist.
-Voucher & Promo.
-Ulasan produk.
-Pembatalan pesanan.
-Pengembalian barang dan dana.
-🛠️ Teknologi
+Navigasi utama mobile dapat menggunakan tab **Beranda**, **Kategori**, **Keranjang**, dan **Akun/Bantuan** sesuai hasil desain. Tampilan desktop menyesuaikan lebar layar tanpa mengubah alur inti.
 
-Teknologi frontend awal:
+## Alur Belanja
 
-HTML
-CSS
-JavaScript
+1. Pelanggan membuka katalog, mencari produk, lalu melihat detail produk.
+2. Pelanggan memasukkan produk ke keranjang.
+3. Saat checkout, frontend mengirim pilihan item dan data pembeli ke Edge Function.
+4. Backend mengambil harga dan status ketersediaan terkini dari database; total tidak dipercaya hanya dari nilai frontend.
+5. Backend memvalidasi alamat, ongkos kirim, diskon, stok, dan aturan pesanan.
+6. Pesanan serta snapshot item disimpan secara konsisten.
+7. Backend membuat transaksi Duitku POP dan menyimpan referensi transaksi serta URL pembayaran.
+8. Pelanggan menyelesaikan pembayaran di halaman Duitku.
+9. Duitku mengirim callback ke Edge Function.
+10. Backend memvalidasi signature, identitas transaksi, nominal, dan status; callback diproses secara idempoten.
+11. Frontend menampilkan status dari backend, bukan menganggap redirect browser sebagai bukti pembayaran.
+12. Pesanan diteruskan ke proses pemenuhan dan pengiriman sesuai aturan bisnis.
 
-Backend, database, dan konfigurasi Duitku POP akan ditentukan sesuai kebutuhan implementasi.
+**Catatan ongkos kirim:** jika ongkos kirim ditentukan manual oleh admin, invoice pembayaran baru dibuat setelah ongkir ditetapkan dan disetujui pelanggan. Detail final alur ini harus diselaraskan dengan kebijakan operasional toko.
 
-🚀 Instalasi
-Clone repository:
-bash
-git clone https://github.com/username/ecommerce-mobile-ui.git
+## Arsitektur
 
-Masuk ke direktori proyek:
-bash
-cd ecommerce-mobile-ui
+```text
+React + Vite + TypeScript
+          |
+          | HTTPS / request tervalidasi
+          v
+Supabase Edge Functions
+  |          |            |
+  |          |            +--> Duitku POP API / callback
+  |          +---------------> Supabase Storage (jika diperlukan)
+  +--------------------------> Supabase PostgreSQL
+```
 
-Buka file index.html di browser untuk melihat UI frontend.
+Prinsip arsitektur:
 
-Catatan: Langkah di atas hanya untuk frontend statis. Integrasi pembayaran Duitku POP membutuhkan backend yang dikonfigurasi secara terpisah.
+- Frontend menangani presentasi, navigasi, dan interaksi pengguna.
+- Edge Functions menangani operasi tepercaya: validasi, pembuatan pesanan, pembayaran, callback, dan akses data yang perlu otorisasi khusus.
+- PostgreSQL menjadi sumber data utama untuk harga, stok, pesanan, dan status pembayaran.
+- Gunakan transaksi database atau fungsi SQL atomik untuk operasi yang harus konsisten.
+- Data sensitif pelanggan dan pesanan tidak boleh dapat dibaca hanya dengan menebak ID.
+- Jangan menganggap nama endpoint, tabel, kolom, atau payload di dokumen ini sebagai kontrak final sebelum dibandingkan dengan implementasi aktual.
 
-📐 Responsive Design
+## Rancangan Database Supabase
 
-Dirancang untuk berbagai ukuran layar:
+Berikut adalah **model logis awal**, bukan instruksi untuk langsung membuat migration. Nama tabel dan kolom harus disesuaikan dengan schema aktif sebelum implementasi.
 
-Mobile
-Tablet
-Desktop
-📂 Struktur Proyek
-text
-ecommerce-mobile-ui/
-├── index.html
-├── css/
-│   └── style.css
-├── js/
-│   └── script.js
-├── images/
-├── README.md
-└── backend/        # Rencana implementasi backend
+| Tabel | Tujuan dan data utama |
+|---|---|
+| `products` | Katalog: ID, nama/judul, deskripsi, harga, harga promo bila ada, gambar, kategori, ketersediaan, stok, timestamp |
+| `categories` | Nama, slug, deskripsi, dan urutan kategori |
+| `carts` | Keranjang guest berdasarkan pengenal sesi yang tidak mudah ditebak |
+| `cart_items` | Item keranjang, produk, dan kuantitas |
+| `orders` | Referensi pesanan, kontak pembeli, alamat pengiriman, total, status pesanan, timestamp |
+| `order_items` | Snapshot nama produk, harga satuan, kuantitas, dan subtotal saat transaksi |
+| `payments` | Referensi merchant dan Duitku, metode, nominal, URL pembayaran, status, waktu pembayaran |
+| `shipments` | Kurir, nomor resi, status dan waktu pengiriman |
+| `promotions` (opsional) | Aturan promo, masa berlaku, dan batas pemakaian |
+| `wishlists` (opsional) | Produk favorit jika fitur wishlist diaktifkan |
+| `reviews` (opsional) | Ulasan dan rating dengan aturan validasi yang jelas |
+| `callback_events` (opsional) | Audit callback untuk idempotensi dan penelusuran insiden |
 
+### Prinsip integritas data
 
-Struktur di atas merupakan gambaran awal dan dapat berkembang sesuai arsitektur proyek.
+- Gunakan primary key, foreign key, constraint, indeks, dan tipe data yang sesuai.
+- Simpan nilai uang dalam satuan integer Rupiah bila mata uangnya IDR; hindari floating-point untuk perhitungan uang.
+- Buat `merchant_order_id` unik.
+- Simpan snapshot nama dan harga di `order_items` agar detail transaksi tidak berubah saat katalog diperbarui.
+- Hitung ulang harga, diskon, ongkir, dan total di backend.
+- Periksa serta reservasi/perbarui stok secara atomik untuk mencegah overselling.
+- Pisahkan status pesanan, pembayaran, dan pengiriman.
+- Jangan menjalankan migration atau mengubah database aktif hanya berdasarkan rancangan README ini.
 
-📸 Preview
+Contoh status awal yang dapat ditinjau:
 
-Tambahkan screenshot aplikasi di sini.
+- Pembayaran: `pending`, `success`, `failed`, `expired`, `refunded`.
+- Pesanan: `pending_payment`, `processing`, `ready_to_ship`, `shipped`, `completed`, `cancelled`.
+- Pengiriman: `not_shipped`, `shipped`, `delivered`, `failed`.
 
-📄 License
+Status dan transisi final harus mengikuti aturan bisnis serta kontrak Duitku yang benar-benar digunakan.
 
-MIT License
+## Supabase Edge Functions
 
-Version History
-v1.0 — Baseline awal README E-Commerce Mobile UI.
-v1.1 — Menambahkan daftar 31 halaman aplikasi, catatan Guest Checkout, integrasi Duitku POP, verifikasi status pembayaran, akses pesanan yang aman, dan penyesuaian fitur MVP.
-v1.2 — Menambahkan daftar database table, catatan struktur database, kolom integrasi Duitku POP, alur pembayaran, keamanan transaksi, aturan status pesanan, dan ruang lingkup MVP.
+Nama berikut adalah **usulan tanggung jawab endpoint**, bukan pernyataan bahwa function tersebut sudah ada.
+
+| Function (usulan) | Tanggung jawab |
+|---|---|
+| `get-products` | Membaca katalog publik dengan kolom yang memang aman dipublikasikan |
+| `get-product-detail` | Mengambil detail produk dan ketersediaan |
+| `create-order` | Memvalidasi data checkout, harga, stok, dan menyimpan pesanan secara konsisten |
+| `calculate-shipping` (opsional) | Menghitung atau mengambil ongkir jika layanan pengiriman terintegrasi |
+| `duitku-create-invoice` | Membuat invoice melalui API Duitku dari backend |
+| `duitku-callback` | Memvalidasi callback dan memperbarui status transaksi secara idempoten |
+| `get-payment-status` | Mengembalikan status pembayaran setelah validasi akses |
+| `get-order-status` | Mengembalikan status pesanan/pengiriman dengan mekanisme akses yang aman |
+| `reconcile-payment` (opsional) | Menyelaraskan transaksi yang statusnya belum pasti menggunakan sumber tepercaya |
+| `expire-pending-payments` (opsional) | Menangani pesanan atau reservasi yang kedaluwarsa sesuai aturan |
+
+Setiap function perlu mendefinisikan kontrak request/response, validasi input, metode HTTP, CORS, autentikasi/otorisasi bila diperlukan, bentuk error, logging yang tidak membocorkan data sensitif, serta pengujian. Jangan menonaktifkan verifikasi JWT atau membuka endpoint publik tanpa analisis kebutuhan dan kontrol akses yang sesuai.
+
+## Integrasi Duitku POP
+
+Integrasi pembayaran harus mengikuti dokumentasi resmi Duitku POP dan mode sandbox sebelum produksi:
+
+- Dokumentasi POP: https://docs.duitku.com/pop/id/
+- Dokumentasi API: https://docs.duitku.com/api/id/
+
+Prinsip implementasi:
+
+1. Kredensial Duitku hanya disimpan sebagai secret backend, misalnya `DUITKU_MERCHANT_CODE` dan `DUITKU_API_KEY`.
+2. Invoice dibuat dari Edge Function; nominal dan identitas pesanan berasal dari data backend yang tervalidasi.
+3. Simpan ID merchant yang unik, referensi dari Duitku, URL pembayaran, nominal, dan status yang diperlukan.
+4. Verifikasi signature callback sesuai dokumentasi resmi yang berlaku.
+5. Validasi referensi transaksi, nominal, merchant, dan transisi status sebelum memperbarui database.
+6. Terapkan idempotensi agar callback berulang tidak menggandakan efek.
+7. Redirect atau callback JavaScript di browser hanya untuk pengalaman pengguna, bukan sumber kebenaran pembayaran.
+8. Uji callback valid, signature tidak valid, nominal tidak cocok, callback duplikat, timeout, dan status transaksi yang tidak berurutan di sandbox.
+
+Jangan menebak format signature, nama field request, kode status, atau payload callback. Konfirmasikan semuanya dari dokumentasi resmi dan kontrak API aktual.
+
+## Keamanan dan Integritas Data
+
+- Jangan memasukkan `SUPABASE_SERVICE_ROLE_KEY`, API key Duitku, atau secret lain ke kode frontend maupun variabel berawalan `VITE_`.
+- Variabel `VITE_*` dapat terekspos ke browser; hanya simpan konfigurasi publik di sana.
+- Aktifkan dan tinjau Row Level Security (RLS) pada tabel yang dapat diakses melalui Data API.
+- Berikan izin minimum; jangan membuka seluruh kolom atau tabel hanya demi mempermudah UI.
+- Batasi akses pesanan guest melalui token acak berentropi tinggi atau mekanisme verifikasi yang sesuai. Jangan mengandalkan nomor pesanan yang mudah ditebak.
+- Validasi semua input di backend dan jangan mempercayai harga, subtotal, diskon, ongkir, atau status dari klien.
+- Terapkan batasan request, validasi format, CORS yang sesuai, serta pesan error yang tidak membocorkan detail internal.
+- Gunakan operasi atomik untuk membuat pesanan dan mengelola stok.
+- Jangan mencatat API key, token akses pesanan, data pembayaran sensitif, atau seluruh informasi pribadi ke log.
+- Terapkan retensi dan penghapusan data pribadi sesuai kebijakan privasi.
+- Gunakan sandbox untuk pengujian pembayaran; jangan melakukan transaksi nyata selama pengembangan.
+- Sebelum mengubah schema, periksa schema aktif, policy, grants, function, dan dependensi yang sudah digunakan.
+
+## Konfigurasi Environment
+
+Contoh variabel frontend untuk konfigurasi publik:
+
+```dotenv
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Contoh secret backend untuk Supabase Edge Functions:
+
+```dotenv
+DUITKU_MERCHANT_CODE=
+DUITKU_API_KEY=
+DUITKU_BASE_URL=
+```
+
+Nama variabel harus disesuaikan dengan kode dan dokumentasi Duitku yang digunakan. Jangan isi nilai secret dalam README, commit file `.env`, atau mengirim kredensial melalui chat/log. Untuk deployment Supabase, atur secret melalui mekanisme secret management yang sesuai.
+
+## Menjalankan Proyek
+
+Instruksi berikut berlaku jika repository sudah memiliki konfigurasi React/Vite yang sesuai. Periksa `package.json` dan berkas proyek terlebih dahulu.
+
+```bash
+git clone https://github.com/alfazarqom/e-com.git
+cd e-com
+npm install
+npm run dev
+```
+
+Untuk build dan pemeriksaan tipe, gunakan script yang memang tersedia di `package.json`, misalnya:
+
+```bash
+npm run build
+npm run typecheck
+npm run lint
+npm test
+```
+
+Tidak semua script di atas tentu sudah didefinisikan. Jalankan hanya script yang tersedia atau tambahkan melalui perubahan proyek yang ditinjau secara terpisah.
+
+### Konfigurasi Supabase
+
+1. Siapkan proyek Supabase untuk lingkungan development/sandbox.
+2. Tinjau schema, RLS, grants, dan Storage bucket sebelum menghubungkan frontend.
+3. Konfigurasikan URL dan public key Supabase pada environment lokal.
+4. Konfigurasikan secret Duitku hanya di lingkungan backend.
+5. Deploy Edge Functions dan migration hanya setelah kontrak, review keamanan, dan persetujuan perubahan tersedia.
+6. Uji alur pembayaran di sandbox sebelum mempertimbangkan produksi.
+
+## Pengujian dan Kriteria Penerimaan
+
+- Layout dapat digunakan pada layar ponsel, tablet, dan desktop.
+- Navigasi, pencarian, filter, detail produk, serta keranjang memiliki state loading, kosong, dan error yang jelas.
+- Harga dan stok divalidasi ulang di backend saat checkout.
+- Request checkout duplikat tidak membuat pesanan atau pembayaran ganda.
+- Total pesanan dihitung dengan benar dan disimpan sebagai snapshot transaksi.
+- Akses detail pesanan guest tidak dapat dilakukan hanya dengan menebak ID.
+- Callback pembayaran memverifikasi signature, nominal, referensi, dan status.
+- Callback duplikat atau terlambat tidak menyebabkan status mundur atau efek ganda.
+- Stok tetap konsisten pada checkout bersamaan atau kegagalan pembayaran.
+- Secret tidak ada dalam bundle frontend, repository, atau log.
+- Kebijakan RLS dan akses publik diuji dengan role yang relevan.
+- Build, pemeriksaan tipe, lint, dan tes yang tersedia lulus sebelum rilis.
+
+## Tahapan Pengembangan
+
+1. **Audit repository:** verifikasi struktur, dependensi, script, schema Supabase aktif, dan function yang sudah tersedia.
+2. **Konfirmasi requirement:** tetapkan aturan harga, stok, ongkir, masa berlaku pesanan, guest order access, dan transisi status.
+3. **Desain kontrak:** tetapkan schema, API request/response, error, RLS, dan kontrak Duitku berdasarkan sumber resmi.
+4. **Implementasi UI:** kerjakan halaman dan alur mobile-first menggunakan data yang sesuai.
+5. **Implementasi backend:** buat atau sesuaikan Edge Functions dan operasi database atomik setelah disetujui.
+6. **Pengujian:** lakukan tes unit, integrasi, keamanan, dan pembayaran sandbox.
+7. **Review dan rilis:** tinjau perubahan, siapkan rollback, dan lakukan deployment hanya setelah persetujuan eksplisit.
+
+## Status Implementasi
+
+README ini adalah dokumentasi target produk. Status aktual tiap halaman, tabel, Edge Function, integrasi pembayaran, dan tes perlu dikonfirmasi melalui audit repository dan Supabase. Jangan menganggap komponen yang disebutkan di sini sudah tersedia hanya karena tercantum dalam dokumen.
+
+## Lisensi
+
+Ikuti lisensi yang benar-benar disediakan di repository. Jika belum ada berkas lisensi, status lisensi perlu ditentukan sebelum distribusi publik.
