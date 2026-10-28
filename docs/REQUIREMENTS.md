@@ -22,7 +22,7 @@ Untuk melanjutkan dari titik terakhir, gunakan perintah percakapan **`lanjutkan 
 | Pembayaran Duitku POP | Aturan bisnis dasar ditetapkan; kontrak resmi perlu diverifikasi | Belum diverifikasi |
 | Status pesanan, pembayaran, pengiriman | Ditetapkan sebagai kebutuhan | Belum diverifikasi |
 | Tracking pesanan tamu | Ditetapkan sebagai kebutuhan | Belum diverifikasi |
-| Keamanan dan akses admin (Kelompok L–O) | **Menunggu keputusan** | Belum diverifikasi |
+| Keamanan dan akses admin (Kelompok L–O) | **Ditetapkan**; metode identitas admin masih perlu diputuskan | Belum diverifikasi |
 | Audit repository terhadap dokumen ini | Belum dilakukan sampai selesai | Belum diverifikasi |
 | Pengujian end-to-end | Belum direncanakan secara final | Belum dijalankan/dikonfirmasi |
 
@@ -182,24 +182,49 @@ Prinsip UI:
 - Status refund yang belum terverifikasi tidak boleh ditampilkan sebagai berhasil.
 - UI tidak menjadi sumber kebenaran untuk harga, stok, total, atau status pembayaran.
 
-## 10. Keputusan keamanan yang masih menunggu
+## 10. Keputusan keamanan V1 — Kelompok L–O
 
-Kelompok berikut **belum dipilih oleh pengguna**. Jangan menganggap salah satu opsi sebagai keputusan final.
+Keputusan berikut telah dikonfirmasi pengguna pada **2026-10-28**. Keputusan ini menetapkan kebutuhan, bukan bukti implementasi. Metode autentikasi admin dan detail teknis masih memerlukan perancangan/verifikasi.
 
-- [ ] **L — Autentikasi admin**
-  - L1: pelanggan tetap guest; dashboard admin menggunakan autentikasi dan otorisasi aman.
-  - L2: autentikasi admin dikelola dashboard terpisah; backend tetap memverifikasi akses.
-- [ ] **M — Akses API publik**
-  - M1: endpoint publik dibatasi untuk katalog dan operasi guest yang diperlukan; operasi sensitif divalidasi backend.
-  - M2: operasi order, pembayaran, tracking, dan admin melewati Edge Functions; frontend tidak mengakses tabel transaksi secara langsung.
-- [ ] **N — Audit tindakan admin**
-  - N1: audit wajib untuk tindakan sensitif, mencatat aktor, tindakan, waktu, objek, dan hasil.
-  - N2: audit minimum untuk pembayaran, refund, dan pembatalan.
-- [ ] **O — Rate limiting**
-  - O1: wajib untuk tracking, pembuatan pesanan, dan invoice.
-  - O2: wajib untuk tracking dan invoice; endpoint lain mengikuti hasil audit risiko.
+### 10.1 L — Autentikasi dan otorisasi admin (L1)
 
-Rekomendasi untuk diskusi berikutnya adalah menyelesaikan Kelompok L–O. Setelah itu, lakukan audit read-only terhadap repository dan skema Supabase untuk menemukan perbedaan implementasi, tanpa menerapkan perubahan.
+- Pelanggan tetap dapat melakukan guest checkout tanpa Supabase Auth untuk autentikasi pelanggan.
+- Dashboard admin wajib dilindungi autentikasi.
+- Backend wajib memverifikasi identitas dan izin admin pada setiap operasi sensitif; perlindungan frontend saja tidak cukup.
+- Metode pengelolaan identitas admin, pemulihan akun, sesi, pencabutan akses, dan apakah MFA diwajibkan dibahas terpisah.
+
+### 10.2 M — Akses API dan database (M2)
+
+- Operasi transaksi dan administratif yang sensitif harus melewati Supabase Edge Functions dengan validasi dan otorisasi yang sesuai.
+- Frontend tidak menjadi sumber kebenaran harga, stok, total, atau status pembayaran.
+- Hak akses langsung ke tabel transaksi dari frontend harus dibatasi sesuai rancangan grants dan RLS. Akses baca katalog publik dapat diizinkan secara terukur.
+- Backend harus memvalidasi input, memisahkan endpoint publik dari endpoint admin, dan melindungi secret di sisi server.
+- Callback Duitku dan perubahan status transaksi harus diverifikasi di backend. Operasi stok dan pemrosesan callback harus dirancang agar idempoten dan aman terhadap konkurensi.
+
+### 10.3 N — Audit minimum (N2)
+
+- Audit minimum diwajibkan untuk pembayaran, refund, dan pembatalan.
+- Catatan audit untuk tindakan yang tercakup harus mencatat aktor atau identitas sistem, waktu, jenis tindakan, objek terkait, hasil, dan ID korelasi bila relevan.
+- Log tidak boleh menyimpan secret atau data pribadi yang tidak diperlukan dan harus dilindungi dari modifikasi yang tidak berwenang.
+- Audit menyeluruh atas perubahan harga, stok, nomor resi, dan hak akses admin tidak termasuk kewajiban N2 saat ini. Cakupan tersebut dapat ditinjau kembali berdasarkan hasil audit risiko.
+
+### 10.4 O — Rate limiting berdasarkan prioritas risiko (O2)
+
+- Rate limiting wajib diterapkan pada endpoint pembuatan pesanan, pembuatan invoice pembayaran, dan pelacakan pesanan guest.
+- Endpoint lain ditambahkan berdasarkan hasil audit risiko.
+- Mekanisme harus bekerja lintas instance backend, tidak hanya mengandalkan penghitung dalam memori, dan memberi respons aman ketika batas tercapai (misalnya HTTP 429).
+- Nilai batas, jendela waktu, kunci pembatasan, dan penanganan pengguna sah yang terkena batas harus ditentukan saat desain teknis dan diuji.
+
+### 10.5 Ketentuan keamanan tracking guest
+
+- Tracking menggunakan `orderId`, tetapi `orderId` adalah identifier dan bukan bukti kepemilikan.
+- Halaman tracking hanya menampilkan status dan informasi pengiriman minimum; data pribadi pelanggan harus dibatasi secara ketat.
+- Endpoint tracking menerapkan rate limiting, respons aman untuk ID tidak valid, dan tidak membocorkan informasi sensitif.
+- Kebutuhan verifikasi tambahan sebelum mengungkap data sensitif harus dievaluasi saat desain teknis; rate limiting saja tidak membuktikan kepemilikan pesanan.
+
+### 10.6 Status verifikasi
+
+Keputusan L–O di atas adalah requirement final yang dicatat dari diskusi, tetapi implementasinya belum diverifikasi. Audit read-only repository, konfigurasi grants/RLS, Edge Functions, dan pengujian keamanan masih diperlukan sebelum kesesuaian implementasi dapat dinyatakan.
 
 ## 11. Kriteria penerimaan V1 yang perlu diuji
 
@@ -235,4 +260,4 @@ Saat melanjutkan pekerjaan:
 ### Riwayat keputusan awal
 
 - **2026-10-28:** keputusan kebutuhan katalog/varian, penghapusan varian, penguncian SKU dan atribut identitas, snapshot harga dan ongkir, validasi checkout, invoice valid, tracking orderId, penanganan pembayaran terlambat, status pesanan/pembayaran/pengiriman, dan pembatalan admin dicatat dari diskusi.
-- **Belum diputuskan:** Kelompok L–O mengenai autentikasi admin, akses API, audit tindakan admin, dan rate limiting.
+- **2026-10-28:** Kelompok L–O dikonfirmasi sebagai keputusan final: L1 (autentikasi dashboard admin dengan verifikasi identitas dan izin di backend; metode identitas dibahas terpisah), M2 (operasi transaksi/sensitif melalui Edge Functions), N2 (audit minimum pembayaran/refund/pembatalan), dan O2 (rate limiting wajib untuk pembuatan pesanan, invoice, dan tracking; endpoint lain mengikuti audit risiko). Tracking guest hanya menampilkan status dan informasi pengiriman minimum dengan pembatasan ketat data pribadi.
