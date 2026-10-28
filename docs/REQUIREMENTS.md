@@ -7,6 +7,10 @@
 
 Dokumen ini menyimpan keputusan kebutuhan V1 agar diskusi dapat dilanjutkan dari titik terakhir. Perubahan status progres harus mencerminkan bukti yang tersedia; jangan menandai fitur sebagai selesai hanya karena kebutuhannya sudah diputuskan.
 
+## Cara melanjutkan proyek
+
+Untuk melanjutkan dari titik terakhir, gunakan perintah percakapan **`lanjutkan REQUIREMENT.md`**. Baca dokumen ini (`docs/REQUIREMENTS.md`), periksa keputusan dan status terakhir, lalu lanjutkan dari bagian yang belum selesai tanpa meminta pengguna mengulang keputusan yang sudah dicatat. Aturan kerja lengkap ada di [`docs/PROJECT-WORKFLOW.md`](./PROJECT-WORKFLOW.md).
+
 ## 1. Status progres
 
 | Area | Status kebutuhan | Status implementasi |
