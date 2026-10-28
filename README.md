@@ -349,3 +349,13 @@ README ini mendokumentasikan target produk dan rancangan arsitektur. Keberadaan 
 ## Lisensi
 
 Gunakan lisensi yang benar-benar berlaku di repository. Jika belum ada file lisensi, status lisensi perlu ditentukan oleh pemilik proyek.
+
+## Melanjutkan Proyek
+
+Untuk melanjutkan dari keputusan dan progres terakhir, gunakan perintah percakapan:
+
+```text
+lanjutkan REQUIREMENT.md
+```
+
+Acuan kebutuhan kanonis adalah [`docs/REQUIREMENTS.md`](./docs/REQUIREMENTS.md). Ikuti [`docs/PROJECT-WORKFLOW.md`](./docs/PROJECT-WORKFLOW.md) untuk alur diskusi, audit, persetujuan perubahan, dan verifikasi. Perintah ini tidak memberikan izin otomatis untuk mengubah kode, database, secrets, deployment, atau melakukan merge.
