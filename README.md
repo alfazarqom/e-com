@@ -227,6 +227,8 @@ Dokumentasi resmi:
 - API: https://docs.duitku.com/api/id/
 - FAQ: https://www.duitku.com/frequently-asked-questions/
 
+Panduan kontrak teknis, signature request/callback, keamanan, idempotensi, dan checklist Sandbox tersedia di [`docs/duitku-pop.md`](./docs/duitku-pop.md). Panduan tersebut menjelaskan kontrak yang perlu diverifikasi; bukan bukti bahwa integrasi sudah diimplementasikan atau diuji.
+
 Prinsip integrasi:
 1. Pembuatan invoice dilakukan melalui backend tepercaya.
 2. API key dan kredensial merchant disimpan sebagai secret backend.
